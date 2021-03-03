@@ -12,7 +12,7 @@
 #include "libexfat.h"
 #include "mkfs.h"
 
-static const unsigned char upcase_table[EXFAT_UPCASE_TABLE_SIZE] = {
+static const unsigned char default_upcase_table[EXFAT_UPCASE_TABLE_SIZE] = {
 	0x00, 0x00, 0x01, 0x00, 0x02, 0x00, 0x03, 0x00, 0x04, 0x00, 0x05, 0x00,
 	0x06, 0x00, 0x07, 0x00, 0x08, 0x00, 0x09, 0x00, 0x0A, 0x00, 0x0B, 0x00,
 	0x0C, 0x00, 0x0D, 0x00, 0x0E, 0x00, 0x0F, 0x00, 0x10, 0x00, 0x11, 0x00,
@@ -505,9 +505,13 @@ static const unsigned char upcase_table[EXFAT_UPCASE_TABLE_SIZE] = {
 int exfat_create_upcase_table(struct exfat_blk_dev *bd)
 {
 	int nbytes;
+	unsigned char *upcase_table = default_upcase_table;
+
+	if (finfo->ext_table)
+		upcase_table = finfo->ext_table;
 
 	lseek(bd->dev_fd, finfo.ut_byte_off, SEEK_SET);
-	nbytes = write(bd->dev_fd, upcase_table, EXFAT_UPCASE_TABLE_SIZE);
+	nbytes = write(bd->dev_fd, upcase_table, finfo.ut_byte_len);
 	if (nbytes != EXFAT_UPCASE_TABLE_SIZE)
 		return -1;
 

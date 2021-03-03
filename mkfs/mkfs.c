@@ -423,6 +423,21 @@ static int exfat_pack_bitmap(const struct exfat_user_input *ui)
 	}
 }
 
+static void exfat_get_externel_upcase_table(struct exfat_user_input *ui)
+{
+	int fd, ret = -1;
+	unsigned long long blk_dev_offset = 0;
+
+	fd = open(ui->ext_table, O_RDONLY);
+	if (fd < 0) {
+		exfat_err("open failed : %s, %s\n", ui->ext_table,
+			strerror(errno));
+		return -1;
+	}
+
+	// read table
+}
+
 static int exfat_build_mkfs_info(struct exfat_blk_dev *bd,
 		struct exfat_user_input *ui)
 {
@@ -460,6 +475,8 @@ static int exfat_build_mkfs_info(struct exfat_blk_dev *bd,
 	finfo.ut_start_clu = EXFAT_FIRST_CLUSTER + clu_len / ui->cluster_size;
 	finfo.ut_byte_off = finfo.bitmap_byte_off + clu_len;
 	finfo.ut_byte_len = EXFAT_UPCASE_TABLE_SIZE;
+	if (ui->ext_table_path)
+		exfat_get_externel_upcase_table(bd, ui);
 	clu_len = round_up(finfo.ut_byte_len, ui->cluster_size);
 
 	finfo.root_start_clu = finfo.ut_start_clu + clu_len / ui->cluster_size;
@@ -540,7 +557,7 @@ static int make_exfat(struct exfat_blk_dev *bd, struct exfat_user_input *ui)
 		return ret;
 
 	exfat_info("Upcase table creation: ");
-	ret = exfat_create_upcase_table(bd);
+	ret = exfat_create_upcase_table(bd, ui);
 	exfat_info("%s\n", ret ? "failed" : "done");
 	if (ret)
 		return ret;
@@ -642,6 +659,9 @@ int main(int argc, char *argv[])
 		case 'f':
 			ui.quick = false;
 			break;
+		case 'e':
+			ui.ext_table_path = strdup(optarg);
+			break;
 		case 'V':
 			version_only = true;
 			break;
@@ -684,6 +704,8 @@ int main(int argc, char *argv[])
 	exfat_info("Synchronizing...\n");
 	ret = fsync(bd.dev_fd);
 close:
+	if (finfo.ext_table)
+		free(finfo.ext_table);
 	close(bd.dev_fd);
 out:
 	if (!ret)
